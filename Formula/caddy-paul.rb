@@ -11,32 +11,25 @@ class CaddyPaul < Formula
     pkgshare.install Dir["*"]
   end
 
-  def post_install
-    claude_dir = Pathname.new(Dir.home)/".claude"
-    commands_dir = claude_dir/"commands"
-    commands_dir.mkpath
-
-    target_commands = commands_dir/"paul"
-    target_commands.unlink if target_commands.symlink? || target_commands.exist?
-    target_commands.make_symlink(pkgshare/"commands"/"paul")
-
-    target_framework = claude_dir/"paul-framework"
-    target_framework.unlink if target_framework.symlink? || target_framework.exist?
-    target_framework.make_symlink(pkgshare/"framework")
-  end
-
   def caveats
     <<~EOS
-      PAUL framework installed. Symlinks created at:
-        ~/.claude/commands/paul/
-        ~/.claude/paul-framework/
+      PAUL framework files installed to:
+        #{opt_pkgshare}
 
-      Run /paul:init in any project to set up PAUL planning.
-      Then /paul:plan, /paul:audit (optional), /paul:apply, /paul:unify.
+      To activate in ~/.claude/, run the caddy-link helper:
+        caddy-link
 
-      Note: v0.1.0 ships PAUL's 4 core phase commands. The 8 specialist
-      subagents + paul-sdk CLI are scheduled for v0.2.x; PAUL operates
-      in degraded direct-model mode without them.
+      caddy-link ships with the caddy-frameworks meta-formula:
+        brew install caddy-frameworks
+
+      Or manually symlink (one command):
+        ln -sfn "#{opt_pkgshare}/commands/paul" ~/.claude/commands/paul && \\
+        ln -sfn "#{opt_pkgshare}/framework" ~/.claude/paul-framework
+
+      Note: v0.1.0 ships PAUL's 4 core phase commands (init, plan,
+      audit, apply, unify). The 8 specialist subagents + paul-sdk CLI
+      are scheduled for v0.2.x; PAUL operates in degraded direct-model
+      mode without them.
 
       To uninstall:
         brew uninstall caddy-paul

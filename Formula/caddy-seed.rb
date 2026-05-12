@@ -11,25 +11,19 @@ class CaddySeed < Formula
     pkgshare.install Dir["*"]
   end
 
-  def post_install
-    claude_dir = Pathname.new(Dir.home)/".claude"
-    commands_dir = claude_dir/"commands"
-    commands_dir.mkpath
-
-    target_commands = commands_dir/"seed"
-    target_commands.unlink if target_commands.symlink? || target_commands.exist?
-    target_commands.make_symlink(pkgshare/"commands"/"seed")
-  end
-
   def caveats
     <<~EOS
-      SEED framework installed. Symlink created at:
-        ~/.claude/commands/seed/
+      SEED framework files installed to:
+        #{opt_pkgshare}
 
-      Run /seed:capture to start an ideation flow; /seed:graduate to
-      promote an idea into a PAUL-managed project. This Caddy
-      distribution includes a type-aware routing customization to
-      /seed:graduate.
+      To activate in ~/.claude/, run the caddy-link helper:
+        caddy-link
+
+      caddy-link ships with the caddy-frameworks meta-formula:
+        brew install caddy-frameworks
+
+      Or manually symlink:
+        ln -sfn "#{opt_pkgshare}/commands/seed" ~/.claude/commands/seed
 
       To uninstall:
         brew uninstall caddy-seed

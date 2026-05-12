@@ -11,30 +11,20 @@ class CaddySkillsmith < Formula
     pkgshare.install Dir["*"]
   end
 
-  def post_install
-    claude_dir = Pathname.new(Dir.home)/".claude"
-    commands_dir = claude_dir/"commands"
-    commands_dir.mkpath
-
-    target_commands = commands_dir/"skillsmith"
-    target_commands.unlink if target_commands.symlink? || target_commands.exist?
-    target_commands.make_symlink(pkgshare/"commands"/"skillsmith")
-
-    target_specs = claude_dir/"skillsmith-specs"
-    target_specs.unlink if target_specs.symlink? || target_specs.exist?
-    target_specs.make_symlink(pkgshare/"specs")
-  end
-
   def caveats
     <<~EOS
-      Skillsmith framework installed. Symlinks created at:
-        ~/.claude/commands/skillsmith/
-        ~/.claude/skillsmith-specs/
+      Skillsmith framework files installed to:
+        #{opt_pkgshare}
 
-      Run /skillsmith to build or audit a Claude Code skill. The
-      specs/ directory documents the syntax conventions Skillsmith
-      enforces (checklists, context, entry-point, frameworks, rules,
-      tasks, templates).
+      To activate in ~/.claude/, run the caddy-link helper:
+        caddy-link
+
+      caddy-link ships with the caddy-frameworks meta-formula:
+        brew install caddy-frameworks
+
+      Or manually symlink:
+        ln -sfn "#{opt_pkgshare}/commands/skillsmith" ~/.claude/commands/skillsmith && \\
+        ln -sfn "#{opt_pkgshare}/specs" ~/.claude/skillsmith-specs
 
       To uninstall:
         brew uninstall caddy-skillsmith

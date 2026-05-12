@@ -17,43 +17,30 @@ class CaddyAegis < Formula
     pkgshare.install Dir["*"]
   end
 
-  def post_install
-    claude_dir = Pathname.new(Dir.home)/".claude"
-    commands_dir = claude_dir/"commands"
-    commands_dir.mkpath
-
-    target_commands = commands_dir/"aegis"
-    target_commands.unlink if target_commands.symlink? || target_commands.exist?
-    target_commands.make_symlink(pkgshare/"commands"/"aegis")
-
-    target_framework = claude_dir/"aegis"
-    target_framework.unlink if target_framework.symlink? || target_framework.exist?
-    target_framework.make_symlink(pkgshare/"framework")
-  end
-
   def caveats
     <<~EOS
-      Aegis framework installed. Symlinks created at:
-        ~/.claude/commands/aegis/
-        ~/.claude/aegis/
+      Aegis framework files installed to:
+        #{opt_pkgshare}
 
       External CLI dependencies installed via Homebrew:
-        semgrep   (static analysis)
-        trivy     (vulnerability scanning)
-        gitleaks  (secret scanning)
-        syft      (SBOM generation)
-        grype     (vulnerability matching)
+        gitleaks, grype, semgrep, syft, trivy
 
-      Run /aegis:init in a codebase to set up Aegis scaffolding.
-      Then /aegis:audit for a phased diagnostic audit, and
-      /aegis:guardrails to generate project rules from findings.
+      To activate in ~/.claude/, run the caddy-link helper:
+        caddy-link
+
+      caddy-link ships with the caddy-frameworks meta-formula:
+        brew install caddy-frameworks
+
+      Or manually symlink:
+        ln -sfn "#{opt_pkgshare}/commands/aegis" ~/.claude/commands/aegis && \\
+        ln -sfn "#{opt_pkgshare}/framework" ~/.claude/aegis
 
       To uninstall:
         brew uninstall caddy-aegis
         rm ~/.claude/commands/aegis ~/.claude/aegis
 
-      To also remove the 5 CLI deps:
-        brew uninstall semgrep trivy gitleaks syft grype
+      Optionally remove the 5 CLI deps:
+        brew uninstall gitleaks grype semgrep syft trivy
     EOS
   end
 
