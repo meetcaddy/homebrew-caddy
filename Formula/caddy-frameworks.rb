@@ -1,19 +1,20 @@
 class CaddyFrameworks < Formula
-  desc "Meta-formula bundling Caddy's PAUL + SEED + Skillsmith + Aegis frameworks"
+  desc "Meta-formula bundling Caddy's BASE + PAUL + SEED + Skillsmith + Aegis frameworks"
   homepage "https://meetcaddy.com"
   url "https://github.com/meetcaddy/homebrew-caddy.git",
       revision: "90afc7370a1a30c63d18ad7a62e0670cbce1d9d4",
       using:    :git
-  version "0.1.0"
+  version "0.2.0"
   license "MIT"
 
   depends_on "meetcaddy/caddy/caddy-aegis"
+  depends_on "meetcaddy/caddy/caddy-base"
   depends_on "meetcaddy/caddy/caddy-paul"
   depends_on "meetcaddy/caddy/caddy-seed"
   depends_on "meetcaddy/caddy/caddy-skillsmith"
 
   def install
-    (pkgshare/"INSTALLED").write("Caddy frameworks meta-package v0.1.0\n")
+    (pkgshare/"INSTALLED").write("Caddy frameworks meta-package v0.2.0\n")
 
     (bin/"caddy-link").write <<~SHELL
       #!/usr/bin/env bash
@@ -26,7 +27,8 @@ class CaddyFrameworks < Formula
 
       claude_dir="$HOME/.claude"
       commands_dir="$claude_dir/commands"
-      mkdir -p "$commands_dir"
+      skills_dir="$claude_dir/skills"
+      mkdir -p "$commands_dir" "$skills_dir"
 
       link_one() {
         local label="$1"
@@ -46,6 +48,13 @@ class CaddyFrameworks < Formula
       }
 
       echo "==> Linking Caddy frameworks into $claude_dir"
+
+      base_pkg="$(brew --prefix caddy-base 2>/dev/null)"
+      if [ -n "$base_pkg" ]; then
+        link_one "BASE commands"  "$commands_dir/base"            "$base_pkg/share/caddy-base/commands"
+        link_one "BASE skill"     "$skills_dir/base"              "$base_pkg/share/caddy-base/skill"
+        link_one "BASE framework" "$claude_dir/base-framework"    "$base_pkg/share/caddy-base/framework"
+      fi
 
       paul_pkg="$(brew --prefix caddy-paul 2>/dev/null)"
       if [ -n "$paul_pkg" ]; then
@@ -77,7 +86,7 @@ class CaddyFrameworks < Formula
 
   def caveats
     <<~EOS
-      All 4 Caddy customer-disk frameworks installed via Homebrew.
+      All 5 Caddy customer-disk frameworks installed via Homebrew.
 
       To activate them in ~/.claude/, run:
         caddy-link
@@ -88,6 +97,13 @@ class CaddyFrameworks < Formula
 
       Slash commands available in Claude Code after linking
       (type each prefix in Claude Code for the full menu):
+
+        BASE (15 commands + suite anchor skill):
+          /base:audit  /base:audit-claude  /base:audit-claude-md
+          /base:carl-hygiene  /base:groom  /base:history
+          /base:orientation  /base:pulse  /base:scaffold
+          /base:status  /base:surface-convert  /base:surface-create
+          /base:surface-list  /base:weekly  /base:weekly-domain
 
         PAUL (6 commands):
           /paul:init  /paul:plan  /paul:audit  /paul:apply  /paul:unify
@@ -110,13 +126,18 @@ class CaddyFrameworks < Formula
           /aegis:resume  /aegis:validate  /aegis:playbook
           /aegis:transform  /aegis:remediate  /aegis:guardrails
 
+      BASE ships a base-mcp server that wires per-workspace. After
+      installing the Caddy plugin, run /caddy:base-setup inside Claude
+      Code from each workspace where you want base-mcp tools available.
+
       Aegis ships with 5 external CLI deps: gitleaks, grype, semgrep,
       syft, trivy. Installed via the caddy-aegis formula.
 
       To uninstall everything:
-        brew uninstall caddy-frameworks caddy-paul caddy-seed caddy-skillsmith caddy-aegis
-        rm -rf ~/.claude/commands/{paul,seed,skillsmith,aegis}
-        rm -rf ~/.claude/{paul-framework,skillsmith-specs,aegis}
+        brew uninstall caddy-frameworks caddy-base caddy-paul caddy-seed caddy-skillsmith caddy-aegis
+        rm -rf ~/.claude/commands/{base,paul,seed,skillsmith,aegis}
+        rm -rf ~/.claude/skills/base
+        rm -rf ~/.claude/{base-framework,paul-framework,skillsmith-specs,aegis}
 
       Optionally remove Aegis CLI deps too:
         brew uninstall gitleaks grype semgrep syft trivy
