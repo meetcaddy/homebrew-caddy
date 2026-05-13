@@ -1,20 +1,21 @@
 class CaddyFrameworks < Formula
-  desc "Meta-formula bundling Caddy's BASE + PAUL + SEED + Skillsmith + Aegis frameworks"
+  desc "Meta-formula bundling Caddy's BASE + CARL + PAUL + SEED + Skillsmith + Aegis frameworks"
   homepage "https://meetcaddy.com"
   url "https://github.com/meetcaddy/homebrew-caddy.git",
       revision: "90afc7370a1a30c63d18ad7a62e0670cbce1d9d4",
       using:    :git
-  version "0.2.0"
+  version "0.3.0"
   license "MIT"
 
   depends_on "meetcaddy/caddy/caddy-aegis"
   depends_on "meetcaddy/caddy/caddy-base"
+  depends_on "meetcaddy/caddy/caddy-carl"
   depends_on "meetcaddy/caddy/caddy-paul"
   depends_on "meetcaddy/caddy/caddy-seed"
   depends_on "meetcaddy/caddy/caddy-skillsmith"
 
   def install
-    (pkgshare/"INSTALLED").write("Caddy frameworks meta-package v0.2.0\n")
+    (pkgshare/"INSTALLED").write("Caddy frameworks meta-package v0.3.0\n")
 
     (bin/"caddy-link").write <<~SHELL
       #!/usr/bin/env bash
@@ -56,6 +57,14 @@ class CaddyFrameworks < Formula
         link_one "BASE framework" "$claude_dir/base-framework"    "$base_pkg/share/caddy-base/framework"
       fi
 
+      # CARL has no ~/.claude/ targets to symlink (ships no slash commands or skills).
+      # Inform the customer where the source lives and point at /caddy:carl-setup.
+      carl_pkg="$(brew --prefix caddy-carl 2>/dev/null)"
+      if [ -n "$carl_pkg" ]; then
+        echo "  i CARL MCP source: $carl_pkg/share/caddy-carl/mcp/"
+        echo "    Run /caddy:carl-setup inside Claude Code from each workspace to wire CARL."
+      fi
+
       paul_pkg="$(brew --prefix caddy-paul 2>/dev/null)"
       if [ -n "$paul_pkg" ]; then
         link_one "PAUL commands"  "$commands_dir/paul"            "$paul_pkg/share/caddy-paul/commands/paul"
@@ -86,7 +95,7 @@ class CaddyFrameworks < Formula
 
   def caveats
     <<~EOS
-      All 5 Caddy customer-disk frameworks installed via Homebrew.
+      All 6 Caddy customer-disk frameworks installed via Homebrew.
 
       To activate them in ~/.claude/, run:
         caddy-link
@@ -104,6 +113,18 @@ class CaddyFrameworks < Formula
           /base:orientation  /base:pulse  /base:scaffold
           /base:status  /base:surface-convert  /base:surface-create
           /base:surface-list  /base:weekly  /base:weekly-domain
+
+        CARL (MCP-only, no slash commands; 30 tools, ~8 starter):
+          mcp__carl-mcp__carl_v2_log_decision
+          mcp__carl-mcp__carl_v2_search_decisions
+          mcp__carl-mcp__carl_v2_get_decisions
+          mcp__carl-mcp__carl_v2_list_domains
+          mcp__carl-mcp__carl_v2_get_config
+          mcp__carl-mcp__carl_v2_stage_proposal
+          mcp__carl-mcp__carl_v2_approve_proposal
+          mcp__carl-mcp__carl_v2_get_staged
+          + 22 more (v1 legacy + v2 advanced: rule CRUD, archival, domain mgmt)
+          Wire CARL per-workspace via /caddy:carl-setup inside Claude Code.
 
         PAUL (6 commands):
           /paul:init  /paul:plan  /paul:audit  /paul:apply  /paul:unify
@@ -130,14 +151,20 @@ class CaddyFrameworks < Formula
       installing the Caddy plugin, run /caddy:base-setup inside Claude
       Code from each workspace where you want base-mcp tools available.
 
+      CARL ships a carl-mcp server that also wires per-workspace. After
+      installing the Caddy plugin, run /caddy:carl-setup inside Claude
+      Code from each workspace where you want carl-mcp tools available.
+
       Aegis ships with 5 external CLI deps: gitleaks, grype, semgrep,
       syft, trivy. Installed via the caddy-aegis formula.
 
       To uninstall everything:
-        brew uninstall caddy-frameworks caddy-base caddy-paul caddy-seed caddy-skillsmith caddy-aegis
+        brew uninstall caddy-frameworks caddy-base caddy-carl caddy-paul caddy-seed caddy-skillsmith caddy-aegis
         rm -rf ~/.claude/commands/{base,paul,seed,skillsmith,aegis}
         rm -rf ~/.claude/skills/base
         rm -rf ~/.claude/{base-framework,paul-framework,skillsmith-specs,aegis}
+        # Per-workspace .carl/ and .base/ dirs NOT removed by uninstall
+        # (customer-data-local); remove them manually per workspace if desired.
 
       Optionally remove Aegis CLI deps too:
         brew uninstall gitleaks grype semgrep syft trivy
