@@ -25,6 +25,14 @@ class CaddySeed < Formula
       Or manually symlink:
         ln -sfn "#{opt_pkgshare}/commands/seed" ~/.claude/commands/seed
 
+      Commands installed (type /seed: in Claude Code for the full menu):
+        /seed:seed             entry-point (capture an idea)
+        /seed:tasks:launch     start ideation session
+        /seed:tasks:status     check ideation progress
+        /seed:tasks:ideate     continue ideation
+        /seed:tasks:graduate   promote idea to apps/ or workflows/
+        /seed:tasks:add-type   register a new project type
+
       To uninstall:
         brew uninstall caddy-seed
         rm ~/.claude/commands/seed

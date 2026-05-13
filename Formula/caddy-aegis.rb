@@ -35,6 +35,18 @@ class CaddyAegis < Formula
         ln -sfn "#{opt_pkgshare}/commands/aegis" ~/.claude/commands/aegis && \\
         ln -sfn "#{opt_pkgshare}/framework" ~/.claude/aegis
 
+      Commands installed (type /aegis: in Claude Code for the full menu):
+        /aegis:init        initialize AEGIS in a target project
+        /aegis:audit       run a full or targeted diagnostic audit
+        /aegis:report      view the audit report
+        /aegis:status      show current audit state and progress
+        /aegis:resume      resume an interrupted audit
+        /aegis:validate    test tool install and framework integrity
+        /aegis:playbook    generate a remediation playbook
+        /aegis:transform   run the full Transform pipeline post-audit
+        /aegis:remediate   generate remediation plans for findings
+        /aegis:guardrails  generate AI assistant rules from findings
+
       To uninstall:
         brew uninstall caddy-aegis
         rm ~/.claude/commands/aegis ~/.claude/aegis

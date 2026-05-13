@@ -26,6 +26,17 @@ class CaddySkillsmith < Formula
         ln -sfn "#{opt_pkgshare}/commands/skillsmith" ~/.claude/commands/skillsmith && \\
         ln -sfn "#{opt_pkgshare}/specs" ~/.claude/skillsmith-specs
 
+      Commands installed (type /skillsmith: in Claude Code for the full menu):
+        /skillsmith:skillsmith            entry-point (build a skill)
+        /skillsmith:tasks:audit           audit an existing skill
+        /skillsmith:tasks:distill         distill a skill from examples
+        /skillsmith:tasks:scaffold        scaffold a new skill
+        /skillsmith:tasks:discover        discover skill candidates
+        /skillsmith:rules:*               6 rule sets (tasks, context,
+                                          templates, frameworks,
+                                          checklists, entry-point)
+        /skillsmith:templates:skill-spec  skill spec template
+
       To uninstall:
         brew uninstall caddy-skillsmith
         rm ~/.claude/commands/skillsmith ~/.claude/skillsmith-specs

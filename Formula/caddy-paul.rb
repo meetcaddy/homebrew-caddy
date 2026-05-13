@@ -26,10 +26,18 @@ class CaddyPaul < Formula
         ln -sfn "#{opt_pkgshare}/commands/paul" ~/.claude/commands/paul && \\
         ln -sfn "#{opt_pkgshare}/framework" ~/.claude/paul-framework
 
-      Note: v0.1.0 ships PAUL's 4 core phase commands (init, plan,
-      audit, apply, unify). The 8 specialist subagents + paul-sdk CLI
-      are scheduled for v0.2.x; PAUL operates in degraded direct-model
-      mode without them.
+      Commands installed (type /paul: in Claude Code for the full menu):
+        /paul:init      scaffold .paul/ in a project
+        /paul:plan      run PLAN phase
+        /paul:audit     run AUDIT phase
+        /paul:apply     run APPLY phase
+        /paul:unify     close loop with SUMMARY.md
+        /paul:register  register paul.json for pre-v1.1 projects
+
+      Note: v0.1.0 ships init + register helpers plus the 4 core
+      phase commands (plan, audit, apply, unify). The 8 specialist
+      subagents and paul-sdk CLI are scheduled for v0.2.x; PAUL
+      operates in degraded direct-model mode without them.
 
       To uninstall:
         brew uninstall caddy-paul

@@ -86,11 +86,29 @@ class CaddyFrameworks < Formula
       you have installed. Safe to re-run after upgrades or new
       framework installs.
 
-      Slash commands available in Claude Code after linking:
-        /paul:init  /paul:plan  /paul:audit  /paul:apply  /paul:unify
-        /seed:capture  /seed:graduate
-        /skillsmith
-        /aegis:init  /aegis:audit  /aegis:guardrails
+      Slash commands available in Claude Code after linking
+      (type each prefix in Claude Code for the full menu):
+
+        PAUL (6 commands):
+          /paul:init  /paul:plan  /paul:audit  /paul:apply  /paul:unify
+          /paul:register
+
+        SEED (6 commands):
+          /seed:seed
+          /seed:tasks:launch  /seed:tasks:status  /seed:tasks:ideate
+          /seed:tasks:graduate  /seed:tasks:add-type
+
+        Skillsmith (12 commands):
+          /skillsmith:skillsmith
+          /skillsmith:tasks:audit  /skillsmith:tasks:distill
+          /skillsmith:tasks:scaffold  /skillsmith:tasks:discover
+          /skillsmith:rules:* (6 rule sets)
+          /skillsmith:templates:skill-spec
+
+        Aegis (10 commands):
+          /aegis:init  /aegis:audit  /aegis:report  /aegis:status
+          /aegis:resume  /aegis:validate  /aegis:playbook
+          /aegis:transform  /aegis:remediate  /aegis:guardrails
 
       Aegis ships with 5 external CLI deps: gitleaks, grype, semgrep,
       syft, trivy. Installed via the caddy-aegis formula.
