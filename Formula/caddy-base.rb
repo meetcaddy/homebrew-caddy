@@ -39,8 +39,13 @@ class CaddyBase < Formula
 
     # Suite anchor skill: directory containing base.md + co-located
     # packages/base-mcp/ (matches Charles's installer layout for skills/base/).
+    # Note: the first install above (framework/packages/base-mcp/) consumed
+    # src/packages/base-mcp/*, so we copy from the now-resident Cellar path
+    # rather than from src/. Reading src/ a second time returns an empty
+    # array (the v0.2.0 bug that motivated v0.2.1).
     (pkgshare/"skill").install "src/skill/base.md"
-    (pkgshare/"skill"/"packages"/"base-mcp").install Dir["src/packages/base-mcp/*"]
+    (pkgshare/"skill"/"packages").mkpath
+    cp_r pkgshare/"framework"/"packages"/"base-mcp", pkgshare/"skill"/"packages"/"base-mcp"
   end
 
   def caveats
