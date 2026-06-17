@@ -5,6 +5,9 @@ class CaddyCarl < Formula
   sha256 "43742512d64fa2970f78b86bafe9e2bdbb3e1be3154dee635eedef42696046b8"
   version "2.0.2"
   license "MIT"
+  # Bumped to force reinstall without changing upstream version: patches the
+  # bundled carl-hook.py to advertise the working v2 decision tools (see below).
+  revision 1
 
   depends_on "node"
 
@@ -48,6 +51,26 @@ class CaddyCarl < Formula
     # UserPromptSubmit hook (Python; advanced customer config).
     (pkgshare/"hooks").install Dir["hooks/*"]
 
+    # Patch upstream carl-core@2.0.2 hook: its injected <decisions> block advertises
+    # the RETIRED v1 decision tools (carl_log_decision / carl_search_decisions /
+    # carl_get_decisions). Those read/write a per-domain store (.carl/decisions/*.json)
+    # that was consolidated into .carl/carl.json (tools/carl-json.js), so they fail at
+    # runtime (ENOENT). Rewrite to the working v2 tools (carl_v2_*). The string-pair
+    # inreplace form raises if a target is absent, surfacing upstream drift on a future
+    # version bump. Note: carl_v2_get_domain is the v2 read tool (carl_v2_get_decisions
+    # does NOT exist). Durable fix lives here, in Caddy's owned layer, since the Cellar
+    # copy is overwritten on every brew upgrade.
+    # Block-form gsub! raises Utils::Inreplace::Error if a target is absent, so an
+    # upstream rename of these strings fails the build instead of silently no-op'ing.
+    inreplace pkgshare/"hooks"/"carl-hook.py" do |s|
+      s.gsub! "<decisions>No decisions logged yet. Use carl_log_decision tool to start.</decisions>",
+              "<decisions>No decisions logged yet. Use carl_v2_log_decision tool to start.</decisions>"
+      s.gsub! "Tools: carl_search_decisions(keyword), carl_get_decisions(domain), " \
+              "carl_log_decision(domain, decision, rationale, recall)",
+              "Tools: carl_v2_search_decisions(keyword), carl_v2_get_domain(domain), " \
+              "carl_v2_log_decision(domain, decision, rationale, recall)"
+    end
+
     # Upstream installer + migration script (kept under share/ for advanced operators
     # who want to bootstrap CARL the upstream way; not part of /caddy:carl-setup flow).
     (pkgshare/"bin").install Dir["bin/*"]
@@ -72,13 +95,12 @@ class CaddyCarl < Formula
 
         v2 starter set (8 tools — read README's CARL section):
           carl_v2_log_decision      carl_v2_search_decisions
-          carl_v2_get_decisions     carl_v2_list_domains
+          carl_v2_get_domain        carl_v2_list_domains
           carl_v2_get_config        carl_v2_stage_proposal
           carl_v2_approve_proposal  carl_v2_get_staged
 
         v2 advanced (7 more tools): add_rule, remove_rule, replace_rules,
-          archive_decision, update_config, create_domain, toggle_domain,
-          archive_proposal-equivalent + get_domain
+          archive_decision, update_config, create_domain, toggle_domain
 
         v1 legacy (15 tools): pre-v2 surface kept for back-compat;
           customers with existing CARL workspace state from caddy-live
