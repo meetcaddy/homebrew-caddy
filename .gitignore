@@ -3,3 +3,6 @@
 *.swo
 *.bak-*
 *.log
+
+# Claude Code local state — never tracked in the tap (worktrees + local settings)
+.claude/
