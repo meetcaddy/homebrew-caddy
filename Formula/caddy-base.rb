@@ -25,7 +25,7 @@ class CaddyBase < Formula
   depends_on "node"
 
   patch do
-    url "https://raw.githubusercontent.com/meetcaddy/homebrew-caddy/b795c37edaf76115e9ec42faff86a24fee684a61/patches/caddy-base-rev2.diff"
+    url "https://raw.githubusercontent.com/meetcaddy/homebrew-caddy/43f3eedf13ce64748919123b77c5b9332525dde4/patches/caddy-base-rev2.diff"
     sha256 "182325d79d623cee0f8f36c546bf107ae19d47f09715cf7be478ffb64ba0e7b4"
   end
 
