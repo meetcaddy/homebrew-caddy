@@ -5,12 +5,33 @@ class CaddyBase < Formula
   sha256 "82a3c7228969b70f047df73f4db9a5c5865bcefff3494b8a441fbc053e6d83ed"
   version "3.1.5"
   license "MIT"
+  # Caddy revision 2 patches the pristine 3.1.5 payload via
+  # patches/caddy-base-rev2.diff (URL-fetched, sha256-pinned; an embedded
+  # DATA diff is not used because the hunks contain UTF-8 and Homebrew
+  # reads DATA as binary, which raises Encoding::CompatibilityError):
+  #   - new tools/dates.js: LOCAL calendar-day helpers. UTC day-extraction
+  #     stamped tomorrow's date for evening writes and put groom dates out of
+  #     agreement with each other.
+  #   - state.js / satellite.js / projects.js: use dates.js; reserve archived
+  #     project ids (archiving used to free an id for reuse, colliding with
+  #     the archived record); loud non-negative drift-score floor.
+  #   - framework/tasks/carl-hygiene.md: rule upkeep guidance now uses
+  #     carl_v2_update_rule, never carl_v2_replace_rules (which destroys
+  #     every rule's added date + source attribution).
+  # Upstream npm is unchanged; these fixes are offered upstream as a patch
+  # series and this revision retires when a fixed upstream version ships.
+  revision 2
 
   depends_on "node"
 
+  patch do
+    url "https://raw.githubusercontent.com/meetcaddy/homebrew-caddy/b795c37edaf76115e9ec42faff86a24fee684a61/patches/caddy-base-rev2.diff"
+    sha256 "182325d79d623cee0f8f36c546bf107ae19d47f09715cf7be478ffb64ba0e7b4"
+  end
+
   def install
     # The npm tarball extracts as `package/<contents>` at the cwd root.
-    # We mirror the layout that Charles's `bin/install.js` produces in
+    # We mirror the layout that the upstream installer produces in
     # `~/.claude/`, so `caddy-link` can do simple per-tree symlinks.
     #
     # Final Cellar layout:
@@ -38,7 +59,7 @@ class CaddyBase < Formula
     (pkgshare/"framework"/"packages"/"base-mcp").install Dir["src/packages/base-mcp/*"]
 
     # Suite anchor skill: directory containing base.md + co-located
-    # packages/base-mcp/ (matches Charles's installer layout for skills/base/).
+    # packages/base-mcp/ (matches the upstream installer layout for skills/base/).
     # Note: the first install above (framework/packages/base-mcp/) consumed
     # src/packages/base-mcp/*, so we copy from the now-resident Cellar path
     # rather than from src/. Reading src/ a second time returns an empty
@@ -69,6 +90,9 @@ class CaddyBase < Formula
       workspace where you want base-mcp tools available.
 
       Upstream: @chrisai/base v3.1.5 by Christopher Kahler (MIT)
+      Caddy revision 2 adds local-calendar-date fixes and archived-id
+      reservation to base-mcp, and corrects the CARL-hygiene task guidance
+      (see the formula header for the full list).
 
       To uninstall:
         brew uninstall caddy-base
@@ -82,5 +106,10 @@ class CaddyBase < Formula
     assert_predicate pkgshare/"framework"/"tasks", :directory?
     assert_predicate pkgshare/"framework"/"packages"/"base-mcp"/"index.js", :file?
     assert_predicate pkgshare/"skill"/"packages"/"base-mcp"/"index.js", :file?
+    # Revision-2 patch artifacts present in both base-mcp copies.
+    assert_predicate pkgshare/"framework"/"packages"/"base-mcp"/"tools"/"dates.js", :file?
+    assert_predicate pkgshare/"skill"/"packages"/"base-mcp"/"tools"/"dates.js", :file?
+    # Revision-2 hygiene fix landed.
+    refute_match(/Use `carl_v2_replace_rules/, (pkgshare/"framework"/"tasks"/"carl-hygiene.md").read)
   end
 end

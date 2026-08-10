@@ -83,12 +83,14 @@ The 5 Aegis CLI deps (semgrep, trivy, gitleaks, syft, grype) remain installed if
 
 ## Version cadence
 
-Each formula pins to a specific commit SHA in its source private repo. The current v0.1.0 baseline pins:
+Each formula pins to a specific commit SHA (or a sha256-pinned artifact) in its source repo. The current pins:
 
-- caddy-paul → `meetcaddy/paul` @ ab34d00...
-- caddy-seed → `meetcaddy/seed` @ 47d76ef...
-- caddy-skillsmith → `meetcaddy/skillsmith` @ 0371e97...
-- caddy-aegis → `meetcaddy/aegis` @ b9fcd06...
+- caddy-paul → `meetcaddy/paul` @ e023ad5... (0.2.0)
+- caddy-seed → `meetcaddy/seed` @ ef8f7b3... (0.1.1)
+- caddy-skillsmith → `meetcaddy/skillsmith` @ 0371e97... (0.1.0)
+- caddy-aegis → `meetcaddy/aegis` @ f2f1b49... (0.2.0)
+- caddy-carl → `meetcaddy/carl` @ 2467983... (2.1.0)
+- caddy-base → npm `@chrisai/base@3.1.5` (sha256-pinned) + the Caddy rev2 patch (sha256-pinned)
 
 This means you get the EXACT framework version tested for that tap release; `brew upgrade` is the only path to a newer version.
 

@@ -1,0 +1,295 @@
+diff -ruN a2/src/framework/tasks/carl-hygiene.md b2/src/framework/tasks/carl-hygiene.md
+--- a2/src/framework/tasks/carl-hygiene.md	2026-08-10 09:07:46
++++ b2/src/framework/tasks/carl-hygiene.md	2026-08-10 09:07:46
+@@ -74,7 +74,7 @@
+    ```
+ 3. Ask: "**Keep** (update reviewed date), or **Kill**?"
+ 4. Execute:
+-   - Keep → Use `carl_v2_replace_rules(domain, rules)` with updated `last_reviewed` set to today's date for kept rules
++   - Keep → leave the rule in place; amend wording only via `carl_v2_update_rule` (preserves id, added date, source). NEVER use `carl_v2_replace_rules` — it wipes every rule's added date and source attribution
+    - Kill → Use `carl_v2_remove_rule(domain, rule_id)` (with "Are you sure?" confirmation)
+ 
+ If no stale rules: "All rules are current. No staleness issues." and move to next step.
+diff -ruN a2/src/packages/base-mcp/tools/dates.js b2/src/packages/base-mcp/tools/dates.js
+--- a2/src/packages/base-mcp/tools/dates.js	1969-12-31 18:00:00
++++ b2/src/packages/base-mcp/tools/dates.js	2026-08-10 09:07:46
+@@ -0,0 +1,50 @@
++/**
++ * BASE Dates — LOCAL calendar-date helpers.
++ *
++ * WHY THIS MODULE EXISTS:
++ *
++ * `base_record_groom` stamped `groom.last_groom` with
++ * `new Date().toISOString().split('T')[0]` — and `toISOString()` is UTC BY
++ * DEFINITION. Every other groom surface works in LOCAL dates, so a groom
++ * recorded in the evening (any timezone west of UTC) stamped TOMORROW:
++ * `last_groom` disagreed with the per-area stamps written in the same
++ * session, and `next_groom_due` landed a day late. state.json disagreed
++ * with itself. That is what this module fixes.
++ *
++ * A workspace's "today" is the operator's today. These helpers never touch UTC.
++ *
++ * ⚠️ Do NOT "simplify" these back to toISOString(). That is the bug.
++ * ⚠️ Do NOT use `new Date("YYYY-MM-DD")` to parse a calendar date either — the
++ *    ES spec parses a date-only string as UTC midnight, which reintroduces the
++ *    same offset error through a different door.
++ */
++
++/** Format a Date as a LOCAL YYYY-MM-DD calendar date. */
++export function fmtLocal(d) {
++    const y = d.getFullYear();
++    const m = String(d.getMonth() + 1).padStart(2, '0');
++    const day = String(d.getDate()).padStart(2, '0');
++    return `${y}-${m}-${day}`;
++}
++
++/** Today's LOCAL calendar date as YYYY-MM-DD. */
++export function todayStr() {
++    return fmtLocal(new Date());
++}
++
++/**
++ * Add `days` to a YYYY-MM-DD calendar date, staying in LOCAL time throughout.
++ *
++ * Parsed field-by-field into a local-midnight Date rather than via
++ * `new Date(dateStr)` (UTC midnight per spec). Local midnight also makes this
++ * DST-safe: adding 7 days across a transition keeps the calendar date correct,
++ * because Date's local setters normalise the wall clock for us. Starting from
++ * an hour offset — as the old UTC round-trip did — is what puts a date within
++ * one offset-shift of flipping.
++ */
++export function addDays(dateStr, days) {
++    const [y, m, d] = String(dateStr).split('-').map(Number);
++    const dt = new Date(y, m - 1, d); // local midnight
++    dt.setDate(dt.getDate() + days);
++    return fmtLocal(dt);
++}
+diff -ruN a2/src/packages/base-mcp/tools/projects.js b2/src/packages/base-mcp/tools/projects.js
+--- a2/src/packages/base-mcp/tools/projects.js	2026-08-10 09:07:46
++++ b2/src/packages/base-mcp/tools/projects.js	2026-08-10 09:07:46
+@@ -6,6 +6,7 @@
+ import { readFileSync, writeFileSync, existsSync } from 'fs';
+ import { join } from 'path';
+ import { validateSurface } from './validate.js';
++import { todayStr } from './dates.js'; // LOCAL calendar day, never UTC (see dates.js)
+ 
+ function debugLog(...args) {
+     console.error('[BASE:projects]', new Date().toISOString(), ...args);
+@@ -41,19 +42,56 @@
+     writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf-8');
+ }
+ 
+-function generateProjectId(type, items) {
++// ---- per-machine id band (cross-machine collision guard) --------------------------
++// Every allocator here computed max(id)+1 from THIS machine's store, so two records
++// created the same day on two machines got the SAME id by construction — one id came
++// to name two different projects. Fix: each machine allocates only inside
++// its own reserved band. Config resolution, in order:
++//     ~/.machine-bands.json     (SHARED — same file CARL's allocator reads, so the two
++//                                systems cannot drift into different bands)
++//     ~/.base-gbl/machine.json  (BASE-local legacy fallback)
++// Shape: { "id_range_start": 0, "id_range_size": 500 }  (desktop 000-499, laptop 500-999)
++// Absent or invalid => legacy max(id)+1, byte-identical to before.
++function baseIdRange() {
++    const home = process.env.HOME;
++    if (!home) return null;
++    for (const rel of ['.machine-bands.json', '.base-gbl/machine.json']) {
++        try {
++            const p = join(home, rel);
++            if (!existsSync(p)) continue;
++            const c = JSON.parse(readFileSync(p, 'utf-8'));
++            const start = Number(c.id_range_start);
++            const size = Number(c.id_range_size);
++            if (!Number.isInteger(start) || !Number.isInteger(size) || size <= 0 || start < 0) continue;
++            return { start, size };
++        } catch (e) { /* fall through to the next candidate, then to legacy */ }
++    }
++    return null;
++}
++
++function generateProjectId(type, items, archived) {
++    // Scan ARCHIVED records too. archiveProject() moves an item from `items` into `archived`
++    // (see the push at the archive tool), so scanning `items` alone hands the freed number to
++    // the NEXT project — colliding with a record that still exists in the archive.
++    // Observed for real: a live project id that also appeared under archived.
+     const prefix = TYPE_PREFIX[type];
+     if (!prefix) throw new Error(`Invalid type: ${type}. Valid: initiative, project, task`);
+ 
+-    let max = 0;
+-    for (const item of items) {
++    const range = baseIdRange();
++    let max = range ? range.start - 1 : 0;
++    for (const item of [...(items || []), ...(archived || [])]) {
+         const match = (item.id || '').match(new RegExp(`^${prefix}-(\\d+)$`));
+         if (match) {
+             const num = parseInt(match[1], 10);
++            if (range && (num < range.start || num >= range.start + range.size)) continue; // other machine's band
+             if (num > max) max = num;
+         }
+     }
+-    return `${prefix}-${String(max + 1).padStart(3, '0')}`;
++    const next = max + 1;
++    if (range && next >= range.start + range.size) {
++        throw new Error(`BASE id range exhausted for ${prefix} (band ${range.start}-${range.start + range.size - 1}). Widen id_range_size in ~/.machine-bands.json.`);
++    }
++    return `${prefix}-${String(next).padStart(3, '0')}`;
+ }
+ 
+ function formatTimestamp() {
+@@ -185,7 +223,7 @@
+ 
+     const data = readProjects(workspacePath);
+     const now = formatTimestamp();
+-    const id = generateProjectId(type, data.items);
++    const id = generateProjectId(type, data.items, data.archived);
+ 
+     const newItem = {
+         id,
+@@ -260,7 +298,13 @@
+         id: item.id,
+         title: item.title,
+         outcome,
+-        date: now.split('T')[0],
++        // LOCAL calendar day. Was now.split('T')[0] — the UTC day sliced out of a
++        // UTC instant, the same UTC-day bug spelled in two steps (and why a grep for
++        // the literal toISOString().split() expression missed this site). It had
++        // already written wrong days into archived[] before the fix.
++        date: todayStr(),
++        // archived_at stays the full UTC INSTANT — correct, timezone-agnostic, not a
++        // calendar day. Do not "fix" this one.
+         archived_at: now
+     });
+ 
+diff -ruN a2/src/packages/base-mcp/tools/satellite.js b2/src/packages/base-mcp/tools/satellite.js
+--- a2/src/packages/base-mcp/tools/satellite.js	2026-08-10 09:07:46
++++ b2/src/packages/base-mcp/tools/satellite.js	2026-08-10 09:07:46
+@@ -7,7 +7,32 @@
+ import { readFileSync, writeFileSync, existsSync } from 'fs';
+ import { join, relative } from 'path';
+ import { validateSurface } from './validate.js';
++import { todayStr } from './dates.js';
+ 
++// ---- per-machine id band (cross-machine collision guard) --------------------------
++// See projects.js for the full rationale. Short version: allocators computed max(id)+1
++// from THIS machine's store, so same-day records on two machines collided by
++// construction (one id came to name two different projects). Each machine now
++// allocates only inside its own band. Config: ~/.machine-bands.json (SHARED with CARL's
++// allocator so the systems cannot drift), then ~/.base-gbl/machine.json. Absent or
++// invalid => legacy max(id)+1, byte-identical to before.
++function baseIdRange() {
++    const home = process.env.HOME;
++    if (!home) return null;
++    for (const rel of ['.machine-bands.json', '.base-gbl/machine.json']) {
++        try {
++            const p = join(home, rel);
++            if (!existsSync(p)) continue;
++            const c = JSON.parse(readFileSync(p, 'utf-8'));
++            const start = Number(c.id_range_start);
++            const size = Number(c.id_range_size);
++            if (!Number.isInteger(start) || !Number.isInteger(size) || size <= 0 || start < 0) continue;
++            return { start, size };
++        } catch (e) { /* try next candidate, then legacy */ }
++    }
++    return null;
++}
++
+ function debugLog(...args) {
+     console.error('[BASE:satellite]', new Date().toISOString(), ...args);
+ }
+@@ -123,7 +148,7 @@
+                 path: satellitePath,
+                 engine: 'paul',
+                 state: satellitePath + '/.paul/STATE.md',
+-                registered: new Date().toISOString().split('T')[0],
++                registered: todayStr(), // LOCAL date — was toISOString() (UTC), see dates.js
+                 groom_check: true,
+                 last_activity: timestamps.updated_at || formatTimestamp(),
+                 phase_name: phase.name,
+@@ -156,14 +181,23 @@
+             result.project_synced = true;
+         } else {
+             // Auto-create project entry
+-            const maxNum = projectsData.items
++            const _range = baseIdRange();
++            // include archived: an archived PRJ id must stay reserved (see projects.js)
++            const maxNum = [...(projectsData.items || []), ...(projectsData.archived || [])]
+                 .filter(i => (i.id || '').startsWith('PRJ-'))
+                 .reduce((max, i) => {
+                     const n = parseInt((i.id || '').replace('PRJ-', ''), 10);
++                    if (Number.isNaN(n)) return max;
++                    // skip the OTHER machine's band so auto-created satellites stay in ours
++                    if (_range && (n < _range.start || n >= _range.start + _range.size)) return max;
+                     return n > max ? n : max;
+-                }, 0);
++                }, _range ? _range.start - 1 : 0);
+ 
+-            const newId = `PRJ-${String(maxNum + 1).padStart(3, '0')}`;
++            const _next = maxNum + 1;
++            if (_range && _next >= _range.start + _range.size) {
++                throw new Error(`BASE id range exhausted for PRJ (band ${_range.start}-${_range.start + _range.size - 1}). Widen id_range_size in ~/.machine-bands.json.`);
++            }
++            const newId = `PRJ-${String(_next).padStart(3, '0')}`;
+             const title = paulData.project?.title || name;
+             const now = formatTimestamp();
+ 
+diff -ruN a2/src/packages/base-mcp/tools/state.js b2/src/packages/base-mcp/tools/state.js
+--- a2/src/packages/base-mcp/tools/state.js	2026-08-10 09:07:46
++++ b2/src/packages/base-mcp/tools/state.js	2026-08-10 09:07:46
+@@ -6,6 +6,7 @@
+ import { readFileSync, writeFileSync, existsSync } from 'fs';
+ import { join } from 'path';
+ import { validateSurface } from './validate.js';
++import { todayStr, addDays } from './dates.js';
+ 
+ function debugLog(...args) {
+     console.error('[BASE:state]', new Date().toISOString(), ...args);
+@@ -39,16 +40,11 @@
+     writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf-8');
+ }
+ 
+-function addDays(dateStr, days) {
+-    const d = new Date(dateStr);
+-    d.setDate(d.getDate() + days);
+-    return d.toISOString().split('T')[0];
+-}
++// todayStr() and addDays() now live in ./dates.js and are LOCAL-date based.
++// They used to be defined here on top of `toISOString()` (UTC), which made any
++// groom recorded in the evening stamp TOMORROW and put the groom dates out of
++// agreement with each other. See dates.js for the full write-up.
+ 
+-function todayStr() {
+-    return new Date().toISOString().split('T')[0];
+-}
+-
+ // ============================================================
+ // TOOL DEFINITIONS
+ // ============================================================
+@@ -122,9 +118,26 @@
+     // Merge indicators
+     data.drift.indicators = { ...data.drift.indicators, ...indicators };
+ 
+-    // Recalculate score as sum of all indicator values
+-    data.drift.score = Object.values(data.drift.indicators)
++    // Recalculate score as sum of all indicator values.
++    const rawScore = Object.values(data.drift.indicators)
+         .reduce((sum, val) => sum + (typeof val === 'number' ? val : 0), 0);
++
++    // Defensive floor ONLY — NOT the date fix itself. The drift scale is 0 (clean)
++    // to 15+ (critical); a negative score is meaningless and erodes trust in the
++    // indicator. The real repair was making the groom stamp use LOCAL dates (see
++    // dates.js). This floor exists so that if some future indicator ever goes
++    // negative, the published score stays on-scale.
++    // It is deliberately LOUD rather than silent: a silent clamp would turn the
++    // next occurrence of this class of bug into exactly the invisible failure
++    // that let the original bug survive unnoticed for as long as it did.
++    if (rawScore < 0) {
++        debugLog(
++            `WARNING: raw drift score ${rawScore} is negative — clamping to 0. ` +
++            `A negative indicator is a BUG, not a clean workspace. Indicators: ` +
++            JSON.stringify(data.drift.indicators)
++        );
++    }
++    data.drift.score = Math.max(0, rawScore);
+ 
+     writeState(workspacePath, data);
+ 

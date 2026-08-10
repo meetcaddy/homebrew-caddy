@@ -2,9 +2,9 @@ class CaddySeed < Formula
   desc "SEED ideation framework for Caddy customers (pre-PAUL idea capture)"
   homepage "https://meetcaddy.com"
   url "https://github.com/meetcaddy/seed.git",
-      revision: "47d76efaebb8922c7f7b938eac4806961cec35dc",
+      revision: "ef8f7b3f2a2aad86fbbb8dc4a28616619a68f1bd",
       using:    :git
-  version "0.1.0"
+  version "0.1.1"
   license :cannot_represent
 
   def install

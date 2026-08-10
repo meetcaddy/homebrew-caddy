@@ -2,9 +2,9 @@ class CaddyAegis < Formula
   desc "Aegis security audit framework for Caddy customers"
   homepage "https://meetcaddy.com"
   url "https://github.com/meetcaddy/aegis.git",
-      revision: "b9fcd0603bd10794c179d21c66d5a568cb441c2c",
+      revision: "f2f1b4911d5b69e75a2f4f50b3e174dc27f2a856",
       using:    :git
-  version "0.1.0"
+  version "0.2.0"
   license :cannot_represent
 
   depends_on "gitleaks"

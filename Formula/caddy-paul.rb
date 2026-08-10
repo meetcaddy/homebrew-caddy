@@ -2,9 +2,9 @@ class CaddyPaul < Formula
   desc "PAUL framework for Caddy customers (PLAN/AUDIT/APPLY/UNIFY workflow loops)"
   homepage "https://meetcaddy.com"
   url "https://github.com/meetcaddy/paul.git",
-      revision: "ab34d00912d7165a417dff83a518c797a02a8461",
+      revision: "e023ad5710a8497b3db5868782ed8b3d5ffdf1af",
       using:    :git
-  version "0.1.0"
+  version "0.2.0"
   license :cannot_represent
 
   def install
@@ -26,18 +26,19 @@ class CaddyPaul < Formula
         ln -sfn "#{opt_pkgshare}/commands/paul" ~/.claude/commands/paul && \\
         ln -sfn "#{opt_pkgshare}/framework" ~/.claude/paul-framework
 
-      Commands installed (type /paul: in Claude Code for the full menu):
+      Commands installed (28 — type /paul: in Claude Code for the full menu):
         /paul:init      scaffold .paul/ in a project
         /paul:plan      run PLAN phase
         /paul:audit     run AUDIT phase
         /paul:apply     run APPLY phase
         /paul:unify     close loop with SUMMARY.md
-        /paul:register  register paul.json for pre-v1.1 projects
+        /paul:status    smart status with routing
+        plus research, discuss, milestone, verify, handoff, resume,
+        and the rest of the 28-command loop.
 
-      Note: v0.1.0 ships init + register helpers plus the 4 core
-      phase commands (plan, audit, apply, unify). The 8 specialist
-      subagents and paul-sdk CLI are scheduled for v0.2.x; PAUL
-      operates in degraded direct-model mode without them.
+      Note: v0.2.0 also ships the 12 specialist subagents (agents/);
+      caddy-link links them into ~/.claude/agents/. See VERSION-NOTES.md
+      in the share directory for per-release contents.
 
       To uninstall:
         brew uninstall caddy-paul

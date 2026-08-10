@@ -1,136 +1,60 @@
 class CaddyCarl < Formula
-  desc "CARL framework for Caddy customers (rule routing + decision logging + 30 MCP tools)"
+  desc "CARL framework for Caddy customers (rule routing + decision logging + 31 MCP tools)"
   homepage "https://meetcaddy.com"
-  url "https://registry.npmjs.org/carl-core/-/carl-core-2.0.2.tgz"
-  sha256 "43742512d64fa2970f78b86bafe9e2bdbb3e1be3154dee635eedef42696046b8"
-  version "2.0.2"
+  url "https://github.com/meetcaddy/carl.git",
+      revision: "2467983de41294deb1721df3dbb8445a720fc5b9",
+      using:    :git
+  version "2.1.0"
   license "MIT"
-  # Bumped to force reinstall without changing upstream version: patches the
-  # bundled carl-hook.py to advertise the working v2 decision tools (see below).
-  revision 1
 
   depends_on "node"
 
   def install
-    # The npm tarball extracts as `package/<contents>` at the cwd root.
-    # CARL ships NO slash commands and NO suite skills (unlike BASE).
-    # Pure MCP server + workspace template + Python hook + schemas.
+    # The repo layout mirrors the Cellar layout 1:1 (mcp/, carl-template/,
+    # schemas/, hooks/), so installation is a straight copy. The
+    # customer's /caddy:carl-setup helper reads from pkgshare/mcp/ +
+    # pkgshare/carl-template/ to wire CARL into a workspace's `.carl/`
+    # directory. CARL ships no ~/.claude/ commands or skills, so caddy-link
+    # has nothing to do here.
     #
-    # Cellar layout this formula produces:
-    #   pkgshare/mcp/                   # carl-mcp source (Node.js MCP server)
-    #     ├── index.js
-    #     ├── package.json
-    #     └── tools/
-    #         ├── carl-json.js          # 15 v2 tools
-    #         ├── decisions.js          # 5 v1 tools
-    #         ├── domains.js            # 5 v1 tools
-    #         └── staging.js            # 5 v1 tools
-    #   pkgshare/carl-template/         # workspace template (carl.json + sessions/)
-    #     ├── carl.json
-    #     └── sessions/.gitkeep
-    #   pkgshare/schemas/carl.schema.json
-    #   pkgshare/hooks/carl-hook.py     # CARL UserPromptSubmit hook (Python)
-    #   pkgshare/bin/                   # upstream installer + migration script (kept for reference)
-    #     ├── install.js
-    #     └── migrate-v1-to-v2.sh
-    #
-    # The customer's /caddy:carl-setup helper reads from pkgshare/mcp/ + pkgshare/carl-template/
-    # to wire CARL into a workspace's `.carl/` directory. No global `~/.claude/` symlinks
-    # are needed because CARL ships no `commands/carl/` or `skills/carl/` content.
-
-    # MCP server source (the heart of CARL).
-    (pkgshare/"mcp").install Dir["mcp/*"]
-
-    # Workspace template (seed for <workspace>/.carl/ on first /caddy:carl-setup).
-    # The leading-dot dir name is preserved in install; Cellar path is .carl-template/.
-    (pkgshare/"carl-template").install Dir[".carl-template/*"]
-
-    # JSON schemas (validation for carl.json).
-    (pkgshare/"schemas").install Dir["schemas/*"]
-
-    # UserPromptSubmit hook (Python; advanced customer config).
-    (pkgshare/"hooks").install Dir["hooks/*"]
-
-    # Patch upstream carl-core@2.0.2 hook: its injected <decisions> block advertises
-    # the RETIRED v1 decision tools (carl_log_decision / carl_search_decisions /
-    # carl_get_decisions). Those read/write a per-domain store (.carl/decisions/*.json)
-    # that was consolidated into .carl/carl.json (tools/carl-json.js), so they fail at
-    # runtime (ENOENT). Rewrite to the working v2 tools (carl_v2_*). The string-pair
-    # inreplace form raises if a target is absent, surfacing upstream drift on a future
-    # version bump. Note: carl_v2_get_domain is the v2 read tool (carl_v2_get_decisions
-    # does NOT exist). Durable fix lives here, in Caddy's owned layer, since the Cellar
-    # copy is overwritten on every brew upgrade.
-    # Block-form gsub! raises Utils::Inreplace::Error if a target is absent, so an
-    # upstream rename of these strings fails the build instead of silently no-op'ing.
-    inreplace pkgshare/"hooks"/"carl-hook.py" do |s|
-      s.gsub! "<decisions>No decisions logged yet. Use carl_log_decision tool to start.</decisions>",
-              "<decisions>No decisions logged yet. Use carl_v2_log_decision tool to start.</decisions>"
-      s.gsub! "Tools: carl_search_decisions(keyword), carl_get_decisions(domain), " \
-              "carl_log_decision(domain, decision, rationale, recall)",
-              "Tools: carl_v2_search_decisions(keyword), carl_v2_get_domain(domain), " \
-              "carl_v2_log_decision(domain, decision, rationale, recall)"
-    end
-
-    # Upstream installer + migration script (kept under share/ for advanced operators
-    # who want to bootstrap CARL the upstream way; not part of /caddy:carl-setup flow).
-    (pkgshare/"bin").install Dir["bin/*"]
-
-    # README + LICENSE for provenance.
-    pkgshare.install "README.md", "LICENSE"
+    # 2.1.0 replaces the previous npm carl-core 2.0.2 repackaging (and its
+    # revision-1 hook patch, which the repo now carries directly). On top of
+    # carl-core 2.0.2 it adds: concurrency-safe carl.json writes, the
+    # carl_v2_update_rule tool, local-calendar-day date stamping,
+    # case-insensitive domain lookup, and v1 decision tools that write the
+    # consolidated store the hook reads. See VERSION-NOTES.md.
+    pkgshare.install Dir["*"]
   end
 
   def caveats
     <<~EOS
-      CARL framework MCP source installed to:
+      CARL installed to:
         #{opt_pkgshare}
 
-      CARL is MCP-only (no slash commands, no suite skills). Per-workspace
-      wiring is the customer plugin's job via /caddy:carl-setup.
+      Caddy's distribution of CARL: carl-core 2.0.2 (Chris Kahler, MIT) plus
+      correctness fixes. See VERSION-NOTES.md in the share directory.
 
-      After installing the Caddy plugin, run /caddy:carl-setup inside Claude
-      Code from each workspace where you want CARL's rule routing +
-      decision logging available.
+      CARL is MCP-only (31 tools, no slash commands). Recommended starting
+      set (the operator-rhythm core):
+        carl_v2_log_decision      carl_v2_search_decisions
+        carl_v2_get_domain        carl_v2_list_domains
+        carl_v2_get_config        carl_v2_stage_proposal
+        carl_v2_approve_proposal  carl_v2_get_staged
+      For rule maintenance:
+        carl_v2_update_rule       amend a rule's text in place, preserving
+                                  its id, added date, and source. Never use
+                                  carl_v2_replace_rules for wording changes.
+      + 22 more (v1 legacy + v2 advanced: rule CRUD, archival, domain mgmt)
 
-      Customer-facing tool surface (30 MCP tools total, v1 + v2):
-
-        v2 starter set (8 tools — read README's CARL section):
-          carl_v2_log_decision      carl_v2_search_decisions
-          carl_v2_get_domain        carl_v2_list_domains
-          carl_v2_get_config        carl_v2_stage_proposal
-          carl_v2_approve_proposal  carl_v2_get_staged
-
-        v2 advanced (7 more tools): add_rule, remove_rule, replace_rules,
-          archive_decision, update_config, create_domain, toggle_domain
-
-        v1 legacy (15 tools): pre-v2 surface kept for back-compat;
-          customers with existing CARL workspace state from caddy-live
-          installs can still read it via v1 tools.
-
-      ADVANCED: CARL ships a UserPromptSubmit hook at:
-        #{opt_pkgshare}/hooks/carl-hook.py
-      Customers who want CARL rule injection into every Claude Code prompt
-      can register this in their ~/.claude/settings.json. Documented as
-      advanced for v1.0; revisit at v1.1.
-
-      Upstream: carl-core v2.0.2 by Christopher Kahler (MIT)
-      Same upstream author as caddy-base (BASE framework).
-
-      To uninstall:
-        brew uninstall caddy-carl
-        # Per-workspace .carl/ dirs are NOT removed by uninstall (customer-data-local).
-        # Customer manually removes per-workspace .carl/ dirs if desired.
+      Wire CARL per-workspace by running /caddy:carl-setup inside Claude
+      Code from each workspace where you want carl-mcp tools available.
     EOS
   end
 
   test do
     assert_predicate pkgshare/"mcp"/"index.js", :file?
-    assert_predicate pkgshare/"mcp"/"package.json", :file?
-    assert_predicate pkgshare/"mcp"/"tools"/"carl-json.js", :file?
-    assert_predicate pkgshare/"mcp"/"tools"/"decisions.js", :file?
-    assert_predicate pkgshare/"mcp"/"tools"/"domains.js", :file?
-    assert_predicate pkgshare/"mcp"/"tools"/"staging.js", :file?
+    assert_predicate pkgshare/"mcp"/"tools"/"dates.js", :file?
     assert_predicate pkgshare/"carl-template"/"carl.json", :file?
-    assert_predicate pkgshare/"schemas"/"carl.schema.json", :file?
     assert_predicate pkgshare/"hooks"/"carl-hook.py", :file?
   end
 end

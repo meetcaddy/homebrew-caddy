@@ -4,7 +4,7 @@ class CaddyFrameworks < Formula
   url "https://github.com/meetcaddy/homebrew-caddy.git",
       revision: "90afc7370a1a30c63d18ad7a62e0670cbce1d9d4",
       using:    :git
-  version "0.3.0"
+  version "0.4.0"
   license "MIT"
 
   depends_on "meetcaddy/caddy/caddy-aegis"
@@ -15,7 +15,7 @@ class CaddyFrameworks < Formula
   depends_on "meetcaddy/caddy/caddy-skillsmith"
 
   def install
-    (pkgshare/"INSTALLED").write("Caddy frameworks meta-package v0.3.0\n")
+    (pkgshare/"INSTALLED").write("Caddy frameworks meta-package v0.4.0\n")
 
     (bin/"caddy-link").write <<~SHELL
       #!/usr/bin/env bash
@@ -69,6 +69,17 @@ class CaddyFrameworks < Formula
       if [ -n "$paul_pkg" ]; then
         link_one "PAUL commands"  "$commands_dir/paul"            "$paul_pkg/share/caddy-paul/commands/paul"
         link_one "PAUL framework" "$claude_dir/paul-framework"    "$paul_pkg/share/caddy-paul/framework"
+        # PAUL specialist subagents (v0.2.0+): per-FILE symlinks, because
+        # ~/.claude/agents/ is a shared directory that may hold the user's own
+        # agents — never symlink or replace the directory itself.
+        if [ -d "$paul_pkg/share/caddy-paul/agents" ]; then
+          agents_dir="$claude_dir/agents"
+          mkdir -p "$agents_dir"
+          for f in "$paul_pkg/share/caddy-paul/agents/"paul-*.md; do
+            [ -e "$f" ] || continue
+            link_one "PAUL agent $(basename "$f")" "$agents_dir/$(basename "$f")" "$f"
+          done
+        fi
       fi
 
       seed_pkg="$(brew --prefix caddy-seed 2>/dev/null)"
@@ -114,21 +125,25 @@ class CaddyFrameworks < Formula
           /base:status  /base:surface-convert  /base:surface-create
           /base:surface-list  /base:weekly  /base:weekly-domain
 
-        CARL (MCP-only, no slash commands; 30 tools, ~8 starter):
+        CARL (MCP-only, no slash commands; 31 tools, ~8 starter):
           mcp__carl-mcp__carl_v2_log_decision
           mcp__carl-mcp__carl_v2_search_decisions
-          mcp__carl-mcp__carl_v2_get_decisions
+          mcp__carl-mcp__carl_v2_get_domain
           mcp__carl-mcp__carl_v2_list_domains
           mcp__carl-mcp__carl_v2_get_config
           mcp__carl-mcp__carl_v2_stage_proposal
           mcp__carl-mcp__carl_v2_approve_proposal
           mcp__carl-mcp__carl_v2_get_staged
-          + 22 more (v1 legacy + v2 advanced: rule CRUD, archival, domain mgmt)
+          + 23 more (v1 legacy + v2 advanced: rule CRUD incl.
+            carl_v2_update_rule, archival, domain mgmt)
           Wire CARL per-workspace via /caddy:carl-setup inside Claude Code.
 
-        PAUL (6 commands):
+        PAUL (28 commands + 12 specialist subagents):
           /paul:init  /paul:plan  /paul:audit  /paul:apply  /paul:unify
-          /paul:register
+          /paul:status  /paul:research  /paul:milestone  /paul:verify
+          ... type /paul: for the full 28-command menu. The 12 subagents
+          link into ~/.claude/agents/ (research, planning, review, and
+          build-stream agents).
 
         SEED (6 commands):
           /seed:seed
